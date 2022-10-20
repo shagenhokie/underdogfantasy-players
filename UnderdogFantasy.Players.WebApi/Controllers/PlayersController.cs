@@ -27,18 +27,24 @@ namespace UnderdogFantasy.Players.WebApi.Controllers
                 : (IActionResult)NotFound();
         }
 
-        [HttpGet("{sport}/{id}")]
-        public IActionResult GetPlayerBySportAndId(string sport, string id)
-        {
-            var thePlayer = _playerDocumentStorage.GetPlayerBySportAndId(sport, id);
+        //[HttpGet("{sport}/{id}")]
+        //public IActionResult GetPlayerBySportAndId(string sport, string id)
+        //{
+        //    var thePlayer = _playerDocumentStorage.GetPlayerBySportAndId(sport, id);
 
-            return thePlayer != null
-                ? Ok(ToResourceModel(thePlayer))
-                : (IActionResult)NotFound();
-        }
+        //    return thePlayer != null
+        //        ? Ok(ToResourceModel(thePlayer))
+        //        : (IActionResult)NotFound();
+        //}
 
         [HttpGet]
-        public IEnumerable<Contracts.PlayerResourceModel> SearchPlayers(string sport, char? lastNameInitial, int? age, int? minAge, int? maxAge, string position)
+        public IEnumerable<Contracts.PlayerResourceModel> SearchPlayers(
+            [FromQuery] string sport,
+            [FromQuery(Name = "last_name_initial")] char? lastNameInitial,
+            [FromQuery] int? age,
+            [FromQuery(Name = "min_age")] int? minAge,
+            [FromQuery(Name = "max_age")] int? maxAge,
+            [FromQuery] string position)
         {
             var thePlayerDocs = _playerDocumentStorage.SearchPlayers(sport, lastNameInitial, age, minAge, maxAge, position);
 

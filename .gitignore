@@ -24,7 +24,7 @@ bld/
 [Oo]bj/
 [Bb]inaries/
 
-# Visual Studio 2015 cache/options directory
+# Visual Studio 2015+ cache/options directory
 .vs/
 
 # MSTest test Results
@@ -232,3 +232,7 @@ TestResults/
 
 personal-asb.xml
 /Non-integration.playlist
+
+
+# LiteDB database file
+PlayerData*.db
