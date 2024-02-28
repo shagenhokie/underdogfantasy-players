@@ -1,0 +1,129 @@
+using System;
+using System.Diagnostics;
+using System.IdentityModel.Tokens.Jwt;
+using System.Linq;
+using System.Net;
+using System.Net.Http;
+using System.Net.Http.Formatting;
+using System.Threading;
+using System.Threading.Tasks;
+using AutoMapper;
+using Microsoft.ApplicationInsights;
+using Newtonsoft.Json;
+using Polly;
+using Reload.Common.Configuration;
+using Reload.Common.Policies;
+using Reload.Contracts.Models;
+using Reload.Contracts.Resources;
+using Serilog;
+
+                    if (string.Equals(httpResponse.Content?.Headers.ContentType?.MediaType, JsonMediaTypeFormatter.DefaultMediaType.MediaType, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var stringContent = await httpResponse.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        response = JsonConvert.DeserializeObject<PaymentHubAuthorizationResponse>(stringContent);
+                        apiError = ApiErrorFromPaymentError(response?.Error, request.TransactionId);
+                    }
+
+                    if (httpResponse.StatusCode == HttpStatusCode.Unauthorized)
+                    {
+                        _logger.Error("Invalid token for: {transactionId}", request.TransactionId);
+                        return new AuthorizationResponse
+                        {
+                            IsSuccess = false,
+                            Error = apiError ?? ApiErrors.PaymentHub.Unauthorized
+                        };
+                    }
+
+                    apiError = apiError ?? ApiErrors.PaymentHub.UnmappedError;
+                    if (!httpResponse.IsSuccessStatusCode)
+                    {
+                        _logger.Error(
+                            "{errorMessage} for: {transactionId} with error code: {code} and message: {message}",
+                            response?.Error?.Message, request.TransactionId, apiError.Code, apiError.Message);
+                    }
+
+
+                    if (!httpResponse.IsSuccessStatusCode)
+                    {
+                        var reasonCode = response?.Error?.Details?.FirstOrDefault(x => x.Target == FAILED_ORDER_REASONCODE_TARGET)?.Code;
+                        return new AuthorizationResponse
+                        {
+                            IsSuccess = false,
+                            Error = apiError,
+                            TransactionDateTime = response.TransactionDateTime,
+                            PaymentAuthorizationCode = (string)response.AuthorizationDetails?.Provider?["authCode"],
+                            VisaTransactionId = response.PaymentCorrelationId,
+                            Decision = response.DecisionType,
+                            ReasonCode = reasonCode,
+                            AuthorizationReconciliationId = response.ReconciliationId
+                        };
+                    }
+
+					
+using System;
+using System.Collections.Generic;
+using System.Runtime.Serialization;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
+
+namespace Reload.Contracts.Models
+{
+    public class PaymentHubAuthorizationResponse
+    {
+        public string AuthorizationToken { get; set; }
+
+        public AuthorizationDetails AuthorizationDetails { get; set; }
+
+        public DecisionReason Reason { get; set; }
+
+        [JsonProperty("decision")]
+        public DecisionTypes DecisionType { get; set; }
+
+        public DateTimeOffset TransactionDateTime { get; set; }
+
+        public RuntimeError Error { get; set; }
+
+        public string PaymentCorrelationId { get; set; }
+
+        public string ReconciliationId { get; set; }
+    }
+
+    [DataContract]
+    [JsonConverter(typeof(StringEnumConverter))]
+    public enum DecisionTypes
+    {
+        None = 0,
+        Accept = 1,
+        Review = 2,
+        Deny = 3
+    }
+
+    public class AuthorizationDetails
+    {
+        public string Decision { get; set; }
+        public string ReasonCode { get; set; }
+        public JObject Provider { get; set; }
+    }
+
+    public class DecisionReason
+    {
+        public string Code { get; set; }
+
+        public string Description { get; set; }
+        public RuntimeError Error { get; set; }
+    }
+
+    public class RuntimeError
+    {
+        [JsonProperty("target")]
+        public string Target { get; set; }
+        [JsonProperty("code")]
+        public string Code { get; set; }
+        [JsonProperty("message")]
+        public string Message { get; set; }
+        [JsonProperty("details")]
+        public IEnumerable<RuntimeError> Details { get; set; }
+    }
+}
+
